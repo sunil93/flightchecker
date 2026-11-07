@@ -1,0 +1,47 @@
+{
+  "updated": "2026-11-07 21:53 GMT",
+  "currency": "GBP",
+  "etihad_url": "https://www.etihad.com/en-gb",
+  "best": {
+    "price": 577,
+    "origin": "LHR",
+    "out": "2027-01-13",
+    "ret": "2027-02-08",
+    "legs": "LHR-AUH EY 68 > AUH-COK EY 332",
+    "gf_url": "https://www.google.com/travel/flights?hl=en&gl=uk&curr=GBP&tfs=CBwQAhoiEgoyMDI3LTAxLTEzMgJFWWoHCAESA0xIUnIHCAESA0NPSxoiEgoyMDI3LTAyLTA4MgJFWWoHCAESA0NPS3IHCAESA0xIUkABSAFwAZgBAQ&tfu=EgIIAQ"
+  },
+  "sites": [],
+  "top": [
+    {
+      "price": 577,
+      "origin": "LHR",
+      "out": "2027-01-13",
+      "ret": "2027-02-08"
+    },
+    {
+      "price": 581,
+      "origin": "LHR",
+      "out": "2027-01-13",
+      "ret": "2027-02-08"
+    },
+    {
+      "price": 635,
+      "origin": "MAN",
+      "out": "2027-01-13",
+      "ret": "2027-02-08"
+    },
+    {
+      "price": 817,
+      "origin": "MAN",
+      "out": "2027-01-13",
+      "ret": "2027-02-08"
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-11-07",
+      "price": 577,
+      "origin": "LHR"
+    }
+  ]
+}
