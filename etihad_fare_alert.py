@@ -1,11 +1,11 @@
 """
-Daily cheapest Etihad fare finder: LHR / MAN -> COK, with cheapest booking site.
+Daily cheapest Etihad fare finder: LHR / MAN -> COK, with flight times and cheapest booking site.
 Uses SerpApi's Google Flights API (https://serpapi.com, free tier = 250 searches/month).
 
 Environment variables (set as secrets):
   SERPAPI_KEY   your SerpApi key
   SMTP_USER     sending email address (e.g. a Gmail address)
-  SMTP_PASS     app password (Gmail: Account > Security > App passwords)
+  SMTP_PASS     Gmail app password (NOT your normal password)
   MAIL_TO       where to send the alert
 Optional:
   SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 465)
@@ -29,10 +29,10 @@ DESTINATION = "COK"
 AIRLINE = "EY"                    # Etihad
 CURRENCY = "GBP"
 ROUND_TRIP = True                 # False = one-way
-# Each entry: (outbound date, return date or None). Keep this list short to save API calls:
-# calls per day = len(ORIGINS) * len(DATE_PAIRS) + 1
+# Each entry: (outbound date, return date or None).
+# API calls per day = len(ORIGINS) * len(DATE_PAIRS) + 2 (round trip) or + 1 (one-way)
 DATE_PAIRS = [
-    ("2027-01-13", "2027-02-08"),
+     ("2027-01-13", "2027-02-08"),
     ("2027-01-14", "2027-01-09"),
     ("2027-01-12", "2027-01-08"),
 ]
@@ -42,6 +42,40 @@ DATA_FILE = Path("docs/data.json")
 
 API = "https://serpapi.com/search.json"
 KEY = os.environ.get("SERPAPI_KEY", "")
+
+
+def fmt_dt(s):
+    """'2026-12-18 09:55' -> 'Fri 18 Dec 2026, 09:55' (local time at that airport)."""
+    try:
+        return datetime.strptime(s, "%Y-%m-%d %H:%M").strftime("%a %d %b %Y, %H:%M")
+    except Exception:
+        return s or "?"
+
+
+def fmt_dur(mins):
+    if not mins:
+        return ""
+    return f"{mins // 60}h {mins % 60:02d}m"
+
+
+def parse_itinerary(o):
+    legs = []
+    for l in o.get("flights", []):
+        dep, arr = l.get("departure_airport", {}), l.get("arrival_airport", {})
+        legs.append({
+            "airline": l.get("airline", ""),
+            "flight": l.get("flight_number", ""),
+            "from": dep.get("id", ""),
+            "from_name": dep.get("name", ""),
+            "dep": fmt_dt(dep.get("time", "")),
+            "to": arr.get("id", ""),
+            "to_name": arr.get("name", ""),
+            "arr": fmt_dt(arr.get("time", "")),
+            "duration": fmt_dur(l.get("duration")),
+        })
+    layovers = [{"airport": v.get("name", ""), "duration": fmt_dur(v.get("duration"))}
+                for v in o.get("layovers", [])]
+    return {"legs": legs, "layovers": layovers, "total_duration": fmt_dur(o.get("total_duration"))}
 
 
 def base_params(origin, out_date, ret_date):
@@ -64,50 +98,82 @@ def base_params(origin, out_date, ret_date):
     return p
 
 
-def search(origin, out_date, ret_date):
-    r = requests.get(API, params=base_params(origin, out_date, ret_date), timeout=60)
+def get(params):
+    r = requests.get(API, params=params, timeout=60)
     r.raise_for_status()
-    data = r.json()
+    return r.json()
+
+
+def etihad_only(o):
+    legs = o.get("flights", [])
+    return bool(legs) and all(AIRLINE in (l.get("flight_number", "") or "") for l in legs)
+
+
+def search(origin, out_date, ret_date):
+    data = get(base_params(origin, out_date, ret_date))
     gf_url = (data.get("search_metadata") or {}).get("google_flights_url")
     offers = (data.get("best_flights") or []) + (data.get("other_flights") or [])
     results = []
     for o in offers:
-        if "price" not in o:
-            continue
-        legs = o.get("flights", [])
-        # keep only itineraries actually operated/marketed by Etihad
-        if legs and not all(AIRLINE in (l.get("flight_number", "") or "") for l in legs):
+        if "price" not in o or not etihad_only(o):
             continue
         results.append({
             "price": o["price"],
             "origin": origin,
             "out": out_date,
-            "ret": ret_date,
-            "token": o.get("booking_token"),
+            "ret": ret_date if ROUND_TRIP else None,
+            "token": o.get("booking_token"),          # one-way: present now
+            "dep_token": o.get("departure_token"),    # round trip: needed to get return flights
             "gf_url": gf_url,
-            "duration": o.get("total_duration"),
-            "legs": " > ".join(
-                f"{l['departure_airport']['id']}-{l['arrival_airport']['id']} {l.get('flight_number','')}"
-                for l in legs
-            ),
+            "outbound": parse_itinerary(o),
+            "inbound": None,
         })
     return results
 
 
+def add_return_flight(best):
+    """Round trip: fetch return options for the chosen outbound and take the cheapest."""
+    if not best.get("dep_token"):
+        return
+    p = base_params(best["origin"], best["out"], best["ret"])
+    p["departure_token"] = best["dep_token"]
+    data = get(p)
+    offers = (data.get("best_flights") or []) + (data.get("other_flights") or [])
+    offers = [o for o in offers if "price" in o and etihad_only(o)]
+    if not offers:
+        return
+    cheapest = min(offers, key=lambda o: o["price"])
+    best["price"] = cheapest["price"]                 # exact round-trip total
+    best["token"] = cheapest.get("booking_token")
+    best["inbound"] = parse_itinerary(cheapest)
+
+
 def cheapest_booking_site(best):
-    """Return list of (site, price) sorted by price for the chosen itinerary."""
     if not best.get("token"):
         return []
     p = base_params(best["origin"], best["out"], best["ret"])
+    if best.get("dep_token"):
+        p["departure_token"] = best["dep_token"]
     p["booking_token"] = best["token"]
-    r = requests.get(API, params=p, timeout=60)
-    r.raise_for_status()
     sites = []
-    for opt in r.json().get("booking_options", []):
+    for opt in get(p).get("booking_options", []):
         t = opt.get("together") or {}
         if "price" in t:
             sites.append((t.get("book_with", "Unknown"), t["price"]))
     return sorted(sites, key=lambda s: s[1])
+
+
+def itinerary_text(title, itin):
+    if not itin:
+        return []
+    out = [f"{title} (total {itin['total_duration']}):"]
+    for i, l in enumerate(itin["legs"]):
+        out.append(f"  {l['flight']}  {l['from']} {l['dep']}  ->  {l['to']} {l['arr']}  ({l['duration']})")
+        if i < len(itin["layovers"]):
+            lo = itin["layovers"][i]
+            out.append(f"     layover: {lo['airport']} {lo['duration']}")
+    out.append("")
+    return out
 
 
 def send_email(subject, body):
@@ -133,13 +199,12 @@ def save_data(best, sites, all_results):
         except Exception:
             history = []
     history.append({"date": now.strftime("%Y-%m-%d"), "price": best["price"], "origin": best["origin"]})
-    # one entry per day (latest wins)
     history = list({h["date"]: h for h in history}.values())[-90:]
     data = {
         "updated": now.strftime("%Y-%m-%d %H:%M %Z"),
         "currency": CURRENCY,
         "etihad_url": ETIHAD_URL,
-        "best": {k: best[k] for k in ("price", "origin", "out", "ret", "legs", "gf_url")},
+        "best": {k: best.get(k) for k in ("price", "origin", "out", "ret", "gf_url", "outbound", "inbound")},
         "sites": [{"name": n, "price": pr} for n, pr in sites[:8]],
         "top": [{k: r[k] for k in ("price", "origin", "out", "ret")} for r in all_results[:8]],
         "history": history,
@@ -170,14 +235,26 @@ def main():
 
     all_results.sort(key=lambda r: r["price"])
     best = all_results[0]
-    sites = cheapest_booking_site(best)
+
+    if ROUND_TRIP:
+        try:
+            add_return_flight(best)
+        except Exception as e:
+            print(f"Return-flight lookup failed: {e}", file=sys.stderr)
+    try:
+        sites = cheapest_booking_site(best)
+    except Exception as e:
+        print(f"Booking-options lookup failed: {e}", file=sys.stderr)
+        sites = []
 
     lines = [
         f"Cheapest Etihad fare to Cochin today: {CURRENCY} {best['price']}",
-        f"From: {best['origin']}   Out: {best['out']}   Return: {best['ret'] or 'one-way'}",
-        f"Route: {best['legs']}",
+        f"From {best['origin']}   |   Out {best['out']}   |   Return {best['ret'] or 'one-way'}",
         "",
     ]
+    lines += itinerary_text("OUTBOUND", best["outbound"])
+    lines += itinerary_text("RETURN", best["inbound"])
+
     if sites:
         lines.append("Where to book (cheapest first):")
         lines += [f"  {name}: {CURRENCY} {price}" for name, price in sites[:5]]
