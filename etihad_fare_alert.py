@@ -32,10 +32,11 @@ ROUND_TRIP = True                 # False = one-way
 # Each entry: (outbound date, return date or None).
 # API calls per day = len(ORIGINS) * len(DATE_PAIRS) + 2 (round trip) or + 1 (one-way)
 DATE_PAIRS = [
-    ("2027-01-13", "2027-02-08"),
+     ("2027-01-13", "2027-02-08"),
     ("2027-01-14", "2027-02-09"),
     ("2027-01-12", "2027-02-08"),
 ]
+MAX_TOTAL_HOURS = 15              # skip any flight whose total journey time (incl. layovers) is longer; None = no limit
 ETIHAD_URL = "https://www.etihad.com/en-gb"
 DATA_FILE = Path("docs/data.json")
 # ---------------------------------------------------------------------------
@@ -104,6 +105,14 @@ def get(params):
     return r.json()
 
 
+def within_time_limit(o):
+    """True if the journey (including layovers) is within MAX_TOTAL_HOURS."""
+    mins = o.get("total_duration")
+    if MAX_TOTAL_HOURS is None or not mins:
+        return True
+    return mins <= MAX_TOTAL_HOURS * 60
+
+
 def etihad_only(o):
     legs = o.get("flights", [])
     return bool(legs) and all(AIRLINE in (l.get("flight_number", "") or "") for l in legs)
@@ -115,7 +124,7 @@ def search(origin, out_date, ret_date):
     offers = (data.get("best_flights") or []) + (data.get("other_flights") or [])
     results = []
     for o in offers:
-        if "price" not in o or not etihad_only(o):
+        if "price" not in o or not etihad_only(o) or not within_time_limit(o):
             continue
         results.append({
             "price": o["price"],
@@ -139,7 +148,7 @@ def add_return_flight(best):
     p["departure_token"] = best["dep_token"]
     data = get(p)
     offers = (data.get("best_flights") or []) + (data.get("other_flights") or [])
-    offers = [o for o in offers if "price" in o and etihad_only(o)]
+    offers = [o for o in offers if "price" in o and etihad_only(o) and within_time_limit(o)]
     if not offers:
         return
     cheapest = min(offers, key=lambda o: o["price"])
@@ -311,6 +320,8 @@ def main():
 
     lines.append("\n" + "=" * 50)
     lines.append("ALL ETIHAD FLIGHTS ON YOUR DATES (cheapest first)")
+    if MAX_TOTAL_HOURS:
+        lines.append(f"Only flights with a total journey time of {MAX_TOTAL_HOURS}h or less are shown.")
     if ROUND_TRIP:
         lines.append("Price = round-trip fare when choosing that outbound flight.")
     for g in group_all(all_results):
