@@ -5,39 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Etihad fares to Cochin</title>
 <style>
-  :root { --bg:#faf8f4; --card:#fff; --text:#1d1d1b; --muted:#6b6b66; --accent:#a8801f; --line:#e6e2d9; --good:#1f7a4d; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#161513; --card:#201f1c; --text:#f1efe9; --muted:#9a978e; --accent:#d9b04a; --line:#34322d; --good:#4cc38a; }
+  :root {
+    --bg:#141311; --bg2:#1c1a17; --card:#1f1d1a; --text:#f3eee3; --muted:#a39b8a;
+    --gold:#c9a45c; --gold-light:#e6cb8f; --gold-dark:#8f6f2f; --line:#3a352c; --good:#7fd1a0;
+    --serif: Georgia, "Times New Roman", serif;
   }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
-  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  body {
+    margin:0; color:var(--text); min-height:100vh;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: radial-gradient(1200px 500px at 50% -10%, #2a2519 0%, var(--bg) 60%) fixed;
+  }
+  main { max-width: 780px; margin: 0 auto; padding: 36px 18px 70px; }
+  header { text-align:center; padding-bottom: 6px; }
+  .eyebrow { letter-spacing: .28em; text-transform: uppercase; font-size: .72rem; color: var(--gold); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 2rem; margin: 8px 0 6px; letter-spacing:.01em; }
+  .rule { width: 64px; height: 2px; margin: 14px auto 10px; background: linear-gradient(90deg, transparent, var(--gold), transparent); border:0; }
   .muted { color: var(--muted); font-size: .85rem; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-top: 16px; }
-  .price { font-size: 2.6rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
-  .row { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .card {
+    background: linear-gradient(180deg, var(--card), var(--bg2));
+    border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-top: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  #best { border-color: var(--gold-dark); position: relative; overflow: hidden; }
+  #best::before {
+    content:""; position:absolute; inset:0 0 auto 0; height:3px;
+    background: linear-gradient(90deg, var(--gold-dark), var(--gold-light), var(--gold-dark));
+  }
+  .label { text-transform: uppercase; letter-spacing: .18em; font-size: .7rem; color: var(--gold); }
+  .price { font-family: var(--serif); font-size: 3.2rem; font-weight: 400; color: var(--gold-light); line-height: 1.1; margin-top: 6px; }
+  #meta { margin-top: 8px; font-size: 1rem; }
+  .row { display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); }
   .row:last-child { border-bottom:0; }
+  .row span:last-child { font-variant-numeric: tabular-nums; }
+  .row.best span:first-child::before { content:"\2605  "; color: var(--gold); }
   .row.best span:last-child { color: var(--good); font-weight: 600; }
-  .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
-  a.btn { display:inline-block; padding:11px 16px; border-radius:10px; text-decoration:none; font-weight:600; font-size:.95rem; }
-  a.primary { background: var(--accent); color:#fff; }
-  a.secondary { border:1px solid var(--line); color: var(--text); }
-  h2 { font-size: 1rem; margin: 0 0 8px; }
+  .btns { display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; }
+  a.btn { display:inline-block; padding:12px 20px; border-radius:999px; text-decoration:none; font-weight:600; font-size:.92rem; letter-spacing:.02em; transition: transform .15s, box-shadow .15s; }
+  a.btn:hover { transform: translateY(-1px); }
+  a.primary { background: linear-gradient(135deg, var(--gold-light), var(--gold) 55%, var(--gold-dark)); color:#1a1408; box-shadow: 0 6px 18px rgba(201,164,92,.28); }
+  a.secondary { border:1px solid var(--gold-dark); color: var(--gold-light); }
+  a.secondary:hover { background: rgba(201,164,92,.08); }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: 1.15rem; margin: 0 0 10px; color: var(--gold-light); }
   svg { width:100%; height:auto; display:block; }
   .scroll { overflow-x:auto; }
+  .line { fill:none; stroke: var(--gold); stroke-width:2.5; }
+  .dot { fill: var(--gold-light); }
+  .axis { fill: var(--muted); font-size: 12px; }
+  footer { text-align:center; margin-top: 34px; }
+  @media (max-width: 480px) { .price { font-size: 2.6rem; } h1 { font-size: 1.6rem; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>Etihad to Cochin (COK)</h1>
-  <div class="muted" id="updated">Loading…</div>
+  <header>
+    <div class="eyebrow">Fare watch</div>
+    <h1>London &amp; Manchester to Cochin</h1>
+    <hr class="rule">
+    <div class="muted" id="updated">Loading…</div>
+  </header>
 
   <div class="card" id="best" hidden>
-    <div class="muted">Cheapest Etihad fare right now</div>
+    <div class="label">Cheapest Etihad fare right now</div>
     <div class="price" id="price"></div>
     <div id="meta" style="margin-top:6px"></div>
-    <div class="muted" id="route" style="margin-top:4px"></div>
+    <div class="muted" id="route" style="margin-top:6px"></div>
     <div class="btns">
       <a class="btn primary" id="etihad" target="_blank" rel="noopener">Book on Etihad</a>
       <a class="btn secondary" id="gf" target="_blank" rel="noopener">View this fare on Google Flights</a>
@@ -111,10 +143,10 @@
       const y = p => H - pad - (p - min) * (H - 2 * pad) / span;
       const pts = h.map((e, i) => x(i) + ',' + y(e.price)).join(' ');
       $('chart').innerHTML =
-        '<polyline fill="none" stroke="#a8801f" stroke-width="2.5" points="' + pts + '"/>' +
-        h.map((e, i) => '<circle cx="' + x(i) + '" cy="' + y(e.price) + '" r="3.5" fill="#a8801f"/>').join('') +
-        '<text x="4" y="' + (y(max) + 4) + '" font-size="12" fill="currentColor" opacity=".6">' + max + '</text>' +
-        '<text x="4" y="' + (y(min) + 4) + '" font-size="12" fill="currentColor" opacity=".6">' + min + '</text>';
+        '<polyline class="line" points="' + pts + '"/>' +
+        h.map((e, i) => '<circle class="dot" cx="' + x(i) + '" cy="' + y(e.price) + '" r="3.5"/>').join('') +
+        '<text x="4" y="' + (y(max) + 4) + '" class="axis">' + max + '</text>' +
+        '<text x="4" y="' + (y(min) + 4) + '" class="axis">' + min + '</text>';
     }
   } catch (e) {
     $('updated').textContent = '';
