@@ -52,6 +52,14 @@
   .line { fill:none; stroke: var(--gold); stroke-width:2.5; }
   .dot { fill: var(--gold-light); }
   .axis { fill: var(--muted); font-size: 12px; }
+  .dir { font-family: var(--serif); color: var(--gold-light); font-size: 1.05rem; margin: 14px 0 6px; }
+  .dir:first-of-type { margin-top: 4px; }
+  .dir small { font-family: system-ui, sans-serif; color: var(--muted); font-size: .78rem; margin-left: 8px; }
+  .leg { padding: 10px 0 10px 14px; border-left: 2px solid var(--gold-dark); margin-left: 4px; }
+  .leg .fl { font-size: .8rem; color: var(--muted); }
+  .leg .t { margin-top: 3px; }
+  .leg .t b { font-variant-numeric: tabular-nums; }
+  .layover { margin: 2px 0 2px 4px; padding-left: 14px; font-size: .8rem; color: var(--gold); border-left: 2px dashed var(--line); }
   footer { text-align:center; margin-top: 34px; }
   @media (max-width: 480px) { .price { font-size: 2.6rem; } h1 { font-size: 1.6rem; } }
 </style>
@@ -74,6 +82,12 @@
       <a class="btn primary" id="etihad" target="_blank" rel="noopener">Book on Etihad</a>
       <a class="btn secondary" id="gf" target="_blank" rel="noopener">View this fare on Google Flights</a>
     </div>
+  </div>
+
+  <div class="card" id="flightsCard" hidden>
+    <h2>Flight times</h2>
+    <div id="flights"></div>
+    <div class="muted" style="margin-top:12px">Times are local to each airport.</div>
   </div>
 
   <div class="card" id="sitesCard" hidden>
@@ -112,6 +126,46 @@
     $('route').textContent = d.best.legs || '';
     $('etihad').href = d.etihad_url;
     if (d.best.gf_url) $('gf').href = d.best.gf_url; else $('gf').hidden = true;
+
+
+    function renderItin(title, itin) {
+      if (!itin || !itin.legs || !itin.legs.length) return;
+      const box = $('flights');
+      const h = document.createElement('div');
+      h.className = 'dir';
+      h.textContent = title;
+      if (itin.total_duration) {
+        const sm = document.createElement('small');
+        sm.textContent = 'Total ' + itin.total_duration;
+        h.appendChild(sm);
+      }
+      box.appendChild(h);
+      itin.legs.forEach((l, i) => {
+        const leg = document.createElement('div');
+        leg.className = 'leg';
+        const fl = document.createElement('div');
+        fl.className = 'fl';
+        fl.textContent = (l.airline ? l.airline + ' ' : '') + l.flight + (l.duration ? ' · ' + l.duration : '');
+        const t = document.createElement('div');
+        t.className = 't';
+        const a = document.createElement('b'); a.textContent = l.from + ' ' + l.dep;
+        const arrow = document.createTextNode('  \u2192  ');
+        const b = document.createElement('b'); b.textContent = l.to + ' ' + l.arr;
+        t.append(a, arrow, b);
+        leg.append(fl, t);
+        box.appendChild(leg);
+        const lo = itin.layovers && itin.layovers[i];
+        if (lo && i < itin.legs.length - 1) {
+          const lv = document.createElement('div');
+          lv.className = 'layover';
+          lv.textContent = 'Layover: ' + lo.airport + (lo.duration ? ' · ' + lo.duration : '');
+          box.appendChild(lv);
+        }
+      });
+      $('flightsCard').hidden = false;
+    }
+    renderItin('Outbound', d.best.outbound);
+    renderItin('Return', d.best.inbound);
 
     if (d.sites && d.sites.length) {
       $('sitesCard').hidden = false;
