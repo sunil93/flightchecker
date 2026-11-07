@@ -9,13 +9,16 @@ Environment variables (set as secrets):
   MAIL_TO       where to send the alert
 Optional:
   SMTP_HOST (default smtp.gmail.com), SMTP_PORT (default 465)
+  PAGE_URL      your dashboard URL (GitHub Pages) to include in the email
   FORCE_RUN=1   skip the "is it 6am in London?" check (for testing)
 """
+import json
 import os
 import smtplib
 import sys
 from datetime import datetime
 from email.message import EmailMessage
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
@@ -29,10 +32,12 @@ ROUND_TRIP = True                 # False = one-way
 # Each entry: (outbound date, return date or None). Keep this list short to save API calls:
 # calls per day = len(ORIGINS) * len(DATE_PAIRS) + 1
 DATE_PAIRS = [
-    ("2027-01-13", "2027-02-08"),
-    ("2027-01-14", "2027-01-09"),
-    ("2027-01-12", "2027-01-08"),
+    ("2026-12-18", "2027-01-05"),
+    ("2026-12-20", "2027-01-08"),
+    ("2026-12-23", "2027-01-10"),
 ]
+ETIHAD_URL = "https://www.etihad.com/en-gb"
+DATA_FILE = Path("docs/data.json")
 # ---------------------------------------------------------------------------
 
 API = "https://serpapi.com/search.json"
@@ -63,6 +68,7 @@ def search(origin, out_date, ret_date):
     r = requests.get(API, params=base_params(origin, out_date, ret_date), timeout=60)
     r.raise_for_status()
     data = r.json()
+    gf_url = (data.get("search_metadata") or {}).get("google_flights_url")
     offers = (data.get("best_flights") or []) + (data.get("other_flights") or [])
     results = []
     for o in offers:
@@ -78,6 +84,7 @@ def search(origin, out_date, ret_date):
             "out": out_date,
             "ret": ret_date,
             "token": o.get("booking_token"),
+            "gf_url": gf_url,
             "duration": o.get("total_duration"),
             "legs": " > ".join(
                 f"{l['departure_airport']['id']}-{l['arrival_airport']['id']} {l.get('flight_number','')}"
@@ -114,6 +121,31 @@ def send_email(subject, body):
     with smtplib.SMTP_SSL(host, port) as s:
         s.login(os.environ["SMTP_USER"], os.environ["SMTP_PASS"])
         s.send_message(msg)
+
+
+def save_data(best, sites, all_results):
+    """Write docs/data.json for the dashboard (keeps 90 days of history)."""
+    now = datetime.now(ZoneInfo("Europe/London"))
+    history = []
+    if DATA_FILE.exists():
+        try:
+            history = json.loads(DATA_FILE.read_text()).get("history", [])
+        except Exception:
+            history = []
+    history.append({"date": now.strftime("%Y-%m-%d"), "price": best["price"], "origin": best["origin"]})
+    # one entry per day (latest wins)
+    history = list({h["date"]: h for h in history}.values())[-90:]
+    data = {
+        "updated": now.strftime("%Y-%m-%d %H:%M %Z"),
+        "currency": CURRENCY,
+        "etihad_url": ETIHAD_URL,
+        "best": {k: best[k] for k in ("price", "origin", "out", "ret", "legs", "gf_url")},
+        "sites": [{"name": n, "price": pr} for n, pr in sites[:8]],
+        "top": [{k: r[k] for k in ("price", "origin", "out", "ret")} for r in all_results[:8]],
+        "history": history,
+    }
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DATA_FILE.write_text(json.dumps(data, indent=2))
 
 
 def main():
@@ -153,10 +185,19 @@ def main():
     else:
         lines.append("Booking-site comparison unavailable for this fare.")
 
+    page = os.environ.get("PAGE_URL", "")
+    lines.append("\nBook / view:")
+    lines.append(f"  Etihad site: {ETIHAD_URL}")
+    if best.get("gf_url"):
+        lines.append(f"  This fare on Google Flights: {best['gf_url']}")
+    if page:
+        lines.append(f"  Dashboard: {page}")
+
     lines.append("\nTop 5 overall:")
     for r in all_results[:5]:
         lines.append(f"  {CURRENCY} {r['price']}  {r['origin']}  {r['out']} -> {r['ret'] or 'one-way'}")
 
+    save_data(best, sites, all_results)
     send_email(f"Etihad to Cochin: {CURRENCY} {best['price']} from {best['origin']}", "\n".join(lines))
     print("Email sent.")
 
