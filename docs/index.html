@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etihad fares to Cochin</title>
+<style>
+  :root { --bg:#faf8f4; --card:#fff; --text:#1d1d1b; --muted:#6b6b66; --accent:#a8801f; --line:#e6e2d9; --good:#1f7a4d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161513; --card:#201f1c; --text:#f1efe9; --muted:#9a978e; --accent:#d9b04a; --line:#34322d; --good:#4cc38a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .muted { color: var(--muted); font-size: .85rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-top: 16px; }
+  .price { font-size: 2.6rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .row { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .row:last-child { border-bottom:0; }
+  .row.best span:last-child { color: var(--good); font-weight: 600; }
+  .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+  a.btn { display:inline-block; padding:11px 16px; border-radius:10px; text-decoration:none; font-weight:600; font-size:.95rem; }
+  a.primary { background: var(--accent); color:#fff; }
+  a.secondary { border:1px solid var(--line); color: var(--text); }
+  h2 { font-size: 1rem; margin: 0 0 8px; }
+  svg { width:100%; height:auto; display:block; }
+  .scroll { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Etihad to Cochin (COK)</h1>
+  <div class="muted" id="updated">Loading…</div>
+
+  <div class="card" id="best" hidden>
+    <div class="muted">Cheapest Etihad fare right now</div>
+    <div class="price" id="price"></div>
+    <div id="meta" style="margin-top:6px"></div>
+    <div class="muted" id="route" style="margin-top:4px"></div>
+    <div class="btns">
+      <a class="btn primary" id="etihad" target="_blank" rel="noopener">Book on Etihad</a>
+      <a class="btn secondary" id="gf" target="_blank" rel="noopener">View this fare on Google Flights</a>
+    </div>
+  </div>
+
+  <div class="card" id="sitesCard" hidden>
+    <h2>Where to book (cheapest first)</h2>
+    <div id="sites"></div>
+  </div>
+
+  <div class="card" id="histCard" hidden>
+    <h2>Price history</h2>
+    <div class="scroll"><svg id="chart" viewBox="0 0 700 220" role="img" aria-label="Price history"></svg></div>
+  </div>
+
+  <div class="card" id="topCard" hidden>
+    <h2>Top fares found today</h2>
+    <div id="top"></div>
+  </div>
+
+  <p class="muted" id="error" hidden></p>
+</main>
+
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+  try {
+    const res = await fetch('data.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('data.json not found yet. Run the workflow once.');
+    const d = await res.json();
+    const cur = d.currency || 'GBP';
+    const fmt = n => cur + ' ' + Number(n).toLocaleString('en-GB');
+
+    $('updated').textContent = 'Last updated ' + d.updated;
+    $('best').hidden = false;
+    $('price').textContent = fmt(d.best.price);
+    $('meta').textContent = 'From ' + d.best.origin + ' · Out ' + d.best.out +
+      (d.best.ret ? ' · Return ' + d.best.ret : ' · One-way');
+    $('route').textContent = d.best.legs || '';
+    $('etihad').href = d.etihad_url;
+    if (d.best.gf_url) $('gf').href = d.best.gf_url; else $('gf').hidden = true;
+
+    if (d.sites && d.sites.length) {
+      $('sitesCard').hidden = false;
+      $('sites').innerHTML = d.sites.map((s, i) =>
+        '<div class="row' + (i === 0 ? ' best' : '') + '"><span></span><span></span></div>').join('');
+      [...$('sites').children].forEach((row, i) => {
+        row.children[0].textContent = d.sites[i].name;
+        row.children[1].textContent = fmt(d.sites[i].price);
+      });
+    }
+
+    if (d.top && d.top.length) {
+      $('topCard').hidden = false;
+      $('top').innerHTML = d.top.map(() => '<div class="row"><span></span><span></span></div>').join('');
+      [...$('top').children].forEach((row, i) => {
+        const t = d.top[i];
+        row.children[0].textContent = t.origin + ' · ' + t.out + (t.ret ? ' → ' + t.ret : ' one-way');
+        row.children[1].textContent = fmt(t.price);
+      });
+    }
+
+    const h = d.history || [];
+    if (h.length > 1) {
+      $('histCard').hidden = false;
+      const W = 700, H = 220, pad = 36;
+      const ps = h.map(x => x.price), min = Math.min(...ps), max = Math.max(...ps);
+      const span = (max - min) || 1;
+      const x = i => pad + i * (W - 2 * pad) / (h.length - 1);
+      const y = p => H - pad - (p - min) * (H - 2 * pad) / span;
+      const pts = h.map((e, i) => x(i) + ',' + y(e.price)).join(' ');
+      $('chart').innerHTML =
+        '<polyline fill="none" stroke="#a8801f" stroke-width="2.5" points="' + pts + '"/>' +
+        h.map((e, i) => '<circle cx="' + x(i) + '" cy="' + y(e.price) + '" r="3.5" fill="#a8801f"/>').join('') +
+        '<text x="4" y="' + (y(max) + 4) + '" font-size="12" fill="currentColor" opacity=".6">' + max + '</text>' +
+        '<text x="4" y="' + (y(min) + 4) + '" font-size="12" fill="currentColor" opacity=".6">' + min + '</text>';
+    }
+  } catch (e) {
+    $('updated').textContent = '';
+    $('error').hidden = false;
+    $('error').textContent = e.message;
+  }
+})();
+</script>
+</body>
+</html>
