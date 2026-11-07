@@ -32,9 +32,9 @@ ROUND_TRIP = True                 # False = one-way
 # Each entry: (outbound date, return date or None).
 # API calls per day = len(ORIGINS) * len(DATE_PAIRS) + 2 (round trip) or + 1 (one-way)
 DATE_PAIRS = [
-     ("2027-01-13", "2027-02-08"),
-    ("2027-01-14", "2027-01-09"),
-    ("2027-01-12", "2027-01-08"),
+    ("2027-01-13", "2027-02-08"),
+    ("2027-01-14", "2027-02-09"),
+    ("2027-01-12", "2027-02-08"),
 ]
 ETIHAD_URL = "https://www.etihad.com/en-gb"
 DATA_FILE = Path("docs/data.json")
@@ -176,6 +176,41 @@ def itinerary_text(title, itin):
     return out
 
 
+def short_dt(s):
+    """'Fri 18 Dec 2026, 21:40' -> 'Fri 18 Dec 21:40'"""
+    try:
+        w = s.replace(",", "").split()
+        return f"{w[0]} {w[1]} {w[2]} {w[4]}"
+    except Exception:
+        return s
+
+
+def summary_line(itin):
+    legs = itin["legs"]
+    stops = len(legs) - 1
+    via = ", ".join(l["airport"] for l in itin["layovers"]) if itin["layovers"] else ""
+    stop_txt = "non-stop" if stops == 0 else f"{stops} stop" + ("s" if stops > 1 else "") + (f" ({via})" if via else "")
+    flights = ", ".join(l["flight"].replace(" ", "") for l in legs)
+    return (f"{short_dt(legs[0]['dep'])} -> {short_dt(legs[-1]['arr'])}  |  "
+            f"{itin['total_duration']}  |  {stop_txt}  |  {flights}")
+
+
+def group_all(results):
+    """Group every Etihad option by (origin, outbound date, return date), cheapest first."""
+    groups = {}
+    for r in results:
+        groups.setdefault((r["origin"], r["out"], r["ret"]), []).append(r)
+    out = []
+    for (origin, out_d, ret_d), items in groups.items():
+        items.sort(key=lambda r: r["price"])
+        out.append({
+            "origin": origin, "out": out_d, "ret": ret_d,
+            "flights": [{"price": r["price"], "outbound": r["outbound"]} for r in items],
+        })
+    out.sort(key=lambda g: (g["origin"], g["out"]))
+    return out
+
+
 def send_email(subject, body):
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -207,6 +242,7 @@ def save_data(best, sites, all_results):
         "best": {k: best.get(k) for k in ("price", "origin", "out", "ret", "gf_url", "outbound", "inbound")},
         "sites": [{"name": n, "price": pr} for n, pr in sites[:8]],
         "top": [{k: r[k] for k in ("price", "origin", "out", "ret")} for r in all_results[:8]],
+        "all": group_all(all_results),
         "history": history,
     }
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -223,6 +259,9 @@ def main():
     all_results = []
     for origin in ORIGINS:
         for out_date, ret_date in DATE_PAIRS:
+            if ROUND_TRIP and ret_date and ret_date <= out_date:
+                print(f"Skipping invalid pair {out_date} / {ret_date}: return is not after outbound.", file=sys.stderr)
+                continue
             try:
                 all_results += search(origin, out_date, ret_date)
             except Exception as e:
@@ -270,9 +309,14 @@ def main():
     if page:
         lines.append(f"  Dashboard: {page}")
 
-    lines.append("\nTop 5 overall:")
-    for r in all_results[:5]:
-        lines.append(f"  {CURRENCY} {r['price']}  {r['origin']}  {r['out']} -> {r['ret'] or 'one-way'}")
+    lines.append("\n" + "=" * 50)
+    lines.append("ALL ETIHAD FLIGHTS ON YOUR DATES (cheapest first)")
+    if ROUND_TRIP:
+        lines.append("Price = round-trip fare when choosing that outbound flight.")
+    for g in group_all(all_results):
+        lines.append(f"\n{g['origin']} -> {DESTINATION}   Out {g['out']}   Return {g['ret'] or 'one-way'}")
+        for f in g["flights"]:
+            lines.append(f"  {CURRENCY} {f['price']}   {summary_line(f['outbound'])}")
 
     save_data(best, sites, all_results)
     send_email(f"Etihad to Cochin: {CURRENCY} {best['price']} from {best['origin']}", "\n".join(lines))
