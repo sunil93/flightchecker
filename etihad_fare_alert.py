@@ -32,9 +32,9 @@ ROUND_TRIP = True                 # False = one-way
 # Each entry: (outbound date, return date or None). Keep this list short to save API calls:
 # calls per day = len(ORIGINS) * len(DATE_PAIRS) + 1
 DATE_PAIRS = [
-    ("2026-12-18", "2027-01-05"),
-    ("2026-12-20", "2027-01-08"),
-    ("2026-12-23", "2027-01-10"),
+    ("2027-01-13", "2027-02-08"),
+    ("2027-01-14", "2027-01-09"),
+    ("2027-01-12", "2027-01-08"),
 ]
 ETIHAD_URL = "https://www.etihad.com/en-gb"
 DATA_FILE = Path("docs/data.json")
