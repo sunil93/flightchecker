@@ -39,6 +39,7 @@ DATE_PAIRS = [
 MAX_TOTAL_HOURS = 15              # skip any flight whose total journey time (incl. layovers) is longer; None = no limit
 ETIHAD_URL = "https://www.etihad.com/en-gb"
 DATA_FILE = Path("docs/data.json")
+SENT_FILE = Path("docs/last_sent.txt")
 # ---------------------------------------------------------------------------
 
 API = "https://serpapi.com/search.json"
@@ -258,11 +259,21 @@ def save_data(best, sites, all_results):
     DATA_FILE.write_text(json.dumps(data, indent=2))
 
 
+def mark_sent(now):
+    SENT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SENT_FILE.write_text(now.strftime("%Y-%m-%d"))
+
+
 def main():
-    # Scheduler runs in UTC; only proceed at 06:xx London time (handles BST/GMT).
+    # Two cron triggers run in UTC (one fits BST, one fits GMT). GitHub can start them late,
+    # so: send once per day, as soon as it is 6am or later in London.
+    london_now = datetime.now(ZoneInfo("Europe/London"))
     if not os.environ.get("FORCE_RUN"):
-        if datetime.now(ZoneInfo("Europe/London")).hour != 6:
-            print("Not 6am in London, skipping.")
+        if london_now.hour < 6:
+            print("Before 6am in London, skipping.")
+            return
+        if SENT_FILE.exists() and SENT_FILE.read_text().strip() == london_now.strftime("%Y-%m-%d"):
+            print("Already sent today, skipping.")
             return
 
     all_results = []
@@ -279,6 +290,7 @@ def main():
     if not all_results:
         send_email("Etihad fare check: no fares found",
                    "No Etihad fares were returned today. The API may have failed or dates may be unavailable.")
+        mark_sent(london_now)
         return
 
     all_results.sort(key=lambda r: r["price"])
@@ -329,9 +341,10 @@ def main():
         for f in g["flights"]:
             lines.append(f"  {CURRENCY} {f['price']}   {summary_line(f['outbound'])}")
 
-    save_data(best, sites, all_results)
     send_email(f"Etihad to Cochin: {CURRENCY} {best['price']} from {best['origin']}", "\n".join(lines))
     print("Email sent.")
+    save_data(best, sites, all_results)
+    mark_sent(london_now)
 
 
 if __name__ == "__main__":
