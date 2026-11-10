@@ -60,6 +60,34 @@
   .leg .t { margin-top: 3px; }
   .leg .t b { font-variant-numeric: tabular-nums; }
   .layover { margin: 2px 0 2px 4px; padding-left: 14px; font-size: .8rem; color: var(--gold); border-left: 2px dashed var(--line); }
+  details.grp { border-top: 1px solid var(--line); padding: 10px 0; }
+  details.grp:first-of-type { border-top: 0; }
+  details.grp summary { cursor: pointer; font-weight: 600; color: var(--gold-light); list-style-position: inside; }
+  details.grp summary small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .opt { padding: 10px 0 10px 12px; margin-top: 8px; border-left: 2px solid var(--gold-dark); }
+  .opt .top { display:flex; justify-content:space-between; gap:10px; font-variant-numeric: tabular-nums; }
+  .opt .p { color: var(--gold-light); font-weight: 700; }
+  .opt .sub { color: var(--muted); font-size: .8rem; margin-top: 3px; }
+  .form-row { display:flex; flex-wrap:wrap; gap:12px; align-items:end; margin-top:12px; }
+  .form-row label { display:flex; flex-direction:column; gap:4px; font-size:.75rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; flex:1 1 150px; }
+  .form-row .tag { flex:0 0 auto; color:var(--gold); font-family:var(--serif); font-size:1rem; padding-bottom:10px; }
+  input[type=date], input[type=password], input[type=text] {
+    background:#12110f; color:var(--text); border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-size:.95rem; font-family:inherit; color-scheme: dark; width:100%;
+  }
+  input:focus { outline:none; border-color:var(--gold); }
+  button.btn { border:0; cursor:pointer; font-family:inherit; border-radius:999px; padding:12px 20px; font-weight:600; font-size:.92rem; }
+  button.primary { background: linear-gradient(135deg, var(--gold-light), var(--gold) 55%, var(--gold-dark)); color:#1a1408; }
+  button.secondary { background:transparent; border:1px solid var(--gold-dark); color:var(--gold-light); }
+  button.link { background:none; border:0; color:var(--muted); text-decoration:underline; cursor:pointer; font-size:.8rem; padding:0; }
+  #status { margin-top:12px; font-size:.9rem; min-height:1.2em; }
+  #status.ok { color:var(--good); } #status.err { color:#ff8f8f; }
+  .badge { display:inline-block; padding:6px 14px; border-radius:999px; font-weight:600; font-size:.9rem; border:1px solid var(--gold-dark); color:var(--gold-light); }
+  .badge.good { color:var(--good); border-color:var(--good); }
+  .toolbar { display:flex; flex-wrap:wrap; gap:14px; align-items:end; margin:8px 0 4px; }
+  .toolbar label { display:flex; flex-direction:column; gap:4px; font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .toolbar label.chk { flex-direction:row; align-items:center; gap:8px; padding-bottom:9px; }
+  select { background:#12110f; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 10px; font-family:inherit; }
   footer { text-align:center; margin-top: 34px; }
   @media (max-width: 480px) { .price { font-size: 2.6rem; } h1 { font-size: 1.6rem; } }
 </style>
@@ -84,9 +112,22 @@
     </div>
   </div>
 
+  <div class="card" id="statsCard" hidden>
+    <h2>Price check</h2>
+    <div id="badge"></div>
+    <div id="statsRows" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card" id="originCard" hidden>
+    <h2>London vs Manchester</h2>
+    <div id="origins"></div>
+    <div class="muted" style="margin-top:10px">Fare plus your own cost of getting to each airport (set GROUND_COST in the script).</div>
+  </div>
+
   <div class="card" id="flightsCard" hidden>
     <h2>Flight times</h2>
     <div id="flights"></div>
+    <div class="btns" id="cal"></div>
     <div class="muted" style="margin-top:12px">Times are local to each airport.</div>
   </div>
 
@@ -98,6 +139,17 @@
   <div class="card" id="histCard" hidden>
     <h2>Price history</h2>
     <div class="scroll"><svg id="chart" viewBox="0 0 700 220" role="img" aria-label="Price history"></svg></div>
+  </div>
+
+  <div class="card" id="allCard" hidden>
+    <h2>All Etihad flights on your dates</h2>
+    <div class="muted" id="allNote" style="margin-bottom:6px"></div>
+    <div class="toolbar">
+      <label>Sort <select id="sortBy"><option value="price">Cheapest</option><option value="dur">Shortest</option><option value="dep">Earliest departure</option></select></label>
+      <label>Max time <select id="maxDur"><option value="0">Any</option><option value="12">12h</option><option value="15">15h</option><option value="18">18h</option></select></label>
+      <label class="chk"><input type="checkbox" id="nonstop"> Non-stop only</label>
+    </div>
+    <div id="all"></div>
   </div>
 
   <div class="card" id="topCard" hidden>
@@ -177,6 +229,84 @@
       });
     }
 
+
+    // ---- helpers ----
+    const durMin = t => { t = t || ''; const a = /(\d+)h/.exec(t), b = /(\d+)m/.exec(t); return (a ? +a[1] * 60 : 0) + (b ? +b[1] : 0); };
+    function addRow(box, k, v, cls) {
+      const r = document.createElement('div'); r.className = 'row' + (cls ? ' ' + cls : '');
+      const a = document.createElement('span'), b = document.createElement('span');
+      a.textContent = k; b.textContent = v; r.append(a, b); box.appendChild(r);
+    }
+    // ---- price check ----
+    if (d.stats) {
+      const s = d.stats, price = d.best.price, bx = $('statsRows');
+      let label = 'Tracking starts today', good = false;
+      if (s.hit) { label = 'Target price hit'; good = true; }
+      else if (s.low != null && price <= s.low) { label = 'Lowest price seen so far'; good = true; }
+      else if (s.avg) { const pct = Math.round((price / s.avg - 1) * 100); label = Math.abs(pct) + '% ' + (pct < 0 ? 'below' : 'above') + ' your average'; good = pct < 0; }
+      const bd = document.createElement('span'); bd.className = 'badge' + (good ? ' good' : ''); bd.textContent = label; $('badge').appendChild(bd);
+      if (s.prev != null) addRow(bx, 'Previous check', fmt(s.prev) + (s.delta ? ' (' + (s.delta < 0 ? 'down ' : 'up ') + fmt(Math.abs(s.delta)) + ')' : ' (no change)'));
+      if (s.low != null) addRow(bx, 'Lowest seen', fmt(s.low));
+      if (s.avg != null) addRow(bx, 'Average (' + s.days + ' days)', fmt(s.avg));
+      if (s.target != null) addRow(bx, 'Your target', fmt(s.target));
+      if (d.rate) addRow(bx, 'In rupees', '\u20b9' + Math.round(price * d.rate).toLocaleString('en-IN'));
+      $('statsCard').hidden = false;
+    }
+    // ---- London vs Manchester ----
+    if (d.by_origin && d.by_origin.length > 1) {
+      d.by_origin.forEach((o, i) => addRow($('origins'), o.origin + ' \u00b7 ' + o.out + (o.ret ? ' / ' + o.ret : ''),
+        fmt(o.price) + (o.ground ? ' + ' + fmt(o.ground) + ' = ' + fmt(o.total) : ''), i === 0 ? 'best' : ''));
+      $('originCard').hidden = false;
+    }
+    // ---- calendar links ----
+    function gcal(title, itin) {
+      const L = itin && itin.legs; if (!L || !L.length || !L[0].dep_iso) return null;
+      const st = new Date(L[0].dep_iso.replace(' ', 'T') + ':00Z'), en = new Date(st.getTime() + durMin(itin.total_duration) * 60000);
+      const f = x => x.toISOString().replace(/[-:]/g, '').slice(0, 15);
+      const tz = L[0].from === 'COK' ? 'Asia/Kolkata' : 'Europe/London';
+      return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title) +
+        '&dates=' + f(st) + '/' + f(en) + '&ctz=' + encodeURIComponent(tz) +
+        '&details=' + encodeURIComponent(L.map(l => l.flight + ' ' + l.from + ' ' + l.dep + ' to ' + l.to + ' ' + l.arr).join('\n'));
+    }
+    [['Add outbound to calendar', 'Etihad to Cochin', d.best.outbound], ['Add return to calendar', 'Etihad from Cochin', d.best.inbound]].forEach(c => {
+      const u = gcal(c[1], c[2]); if (!u) return;
+      const a = document.createElement('a'); a.className = 'btn secondary'; a.target = '_blank'; a.rel = 'noopener'; a.href = u; a.textContent = c[0]; $('cal').appendChild(a);
+    });
+    // ---- all flights with sort / filter ----
+    function renderAll() {
+      const box = $('all'); box.textContent = '';
+      const sort = $('sortBy').value, maxH = +$('maxDur').value, ns = $('nonstop').checked;
+      const dkey = f => f.outbound.legs[0].dep_iso || f.outbound.legs[0].dep;
+      let shown = 0;
+      d.all.forEach(g => {
+        const fl = g.flights.filter(f => { const L = f.outbound.legs; return L.length && !(ns && L.length > 1) && !(maxH && durMin(f.outbound.total_duration) > maxH * 60); });
+        fl.sort((a, b) => sort === 'dur' ? durMin(a.outbound.total_duration) - durMin(b.outbound.total_duration) : sort === 'dep' ? dkey(a).localeCompare(dkey(b)) : a.price - b.price);
+        if (!fl.length) return;
+        shown++;
+        const det = document.createElement('details'); det.className = 'grp'; if (shown === 1) det.open = true;
+        const sm = document.createElement('summary'); sm.textContent = g.origin + ' \u2192 COK \u00b7 ' + g.out + (g.ret ? ' / ' + g.ret : ' one-way');
+        const cnt = document.createElement('small'); cnt.textContent = fl.length + ' option' + (fl.length === 1 ? '' : 's'); sm.appendChild(cnt); det.appendChild(sm);
+        fl.forEach(f => {
+          const legs = f.outbound.legs, stops = legs.length - 1, via = (f.outbound.layovers || []).map(x => x.airport).join(', ');
+          const o = document.createElement('div'); o.className = 'opt';
+          const top = document.createElement('div'); top.className = 'top';
+          const left = document.createElement('span'); left.textContent = legs[0].from + ' ' + legs[0].dep + '  \u2192  ' + legs[legs.length - 1].to + ' ' + legs[legs.length - 1].arr;
+          const price = document.createElement('span'); price.className = 'p'; price.textContent = fmt(f.price); top.append(left, price);
+          const sub = document.createElement('div'); sub.className = 'sub';
+          sub.textContent = [f.outbound.total_duration, stops === 0 ? 'non-stop' : stops + ' stop' + (stops > 1 ? 's' : '') + (via ? ' (' + via + ')' : ''), legs.map(l => l.flight).join(', ')].filter(Boolean).join(' \u00b7 ');
+          o.append(top, sub); det.appendChild(o);
+        });
+        box.appendChild(det);
+      });
+      if (!shown) box.textContent = 'No flights match these filters.';
+    }
+    if (d.all && d.all.length) {
+      $('allCard').hidden = false;
+      $('allNote').textContent = 'Price is the round-trip fare when you pick that outbound flight (times are local).';
+      ['sortBy', 'maxDur', 'nonstop'].forEach(id => $(id).addEventListener('change', renderAll));
+      renderAll();
+    }
+
     if (d.top && d.top.length) {
       $('topCard').hidden = false;
       $('top').innerHTML = d.top.map(() => '<div class="row"><span></span><span></span></div>').join('');
@@ -209,5 +339,6 @@
   }
 })();
 </script>
+
 </body>
 </html>
