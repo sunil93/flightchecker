@@ -1,8 +1,5 @@
 name: Daily Etihad fare check
 on:
-  schedule:
-    - cron: "17 5 * * *"  # ~6am London during BST
-    - cron: "17 6 * * *"  # ~6am London during GMT
   workflow_dispatch: {}    # lets you run it manually
 
 permissions:
