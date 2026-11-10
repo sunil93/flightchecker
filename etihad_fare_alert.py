@@ -32,9 +32,9 @@ ROUND_TRIP = True                 # False = one-way
 # Each entry: (outbound date, return date or None).
 # API calls per day = len(ORIGINS) * len(DATE_PAIRS) + 2 (round trip) or + 1 (one-way)
 DATE_PAIRS = [
-     ("2027-01-13", "2027-02-08"),
-    ("2027-01-14", "2027-02-09"),
-    ("2027-01-12", "2027-02-08"),
+     ("2027-01-14", "2027-02-08"),
+    ("2027-01-14", "2027-02-07"),
+    ("2027-01-15", "2027-02-08"),
 ]
 MAX_TOTAL_HOURS = 15              # skip any flight whose total journey time (incl. layovers) is longer; None = no limit
 ETIHAD_URL = "https://www.etihad.com/en-gb"
