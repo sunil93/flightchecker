@@ -31,15 +31,22 @@ CURRENCY = "GBP"
 ROUND_TRIP = True                 # False = one-way
 # Each entry: (outbound date, return date or None).
 # API calls per day = len(ORIGINS) * len(DATE_PAIRS) + 2 (round trip) or + 1 (one-way)
+MAX_PAIRS = 2                     # search at most this many date pairs (saves API calls)
+# Fallback dates, used only if docs/config.json (saved from the dashboard) has none.
 DATE_PAIRS = [
-     ("2027-01-14", "2027-02-08"),
+   ("2027-01-14", "2027-02-08"),
     ("2027-01-14", "2027-02-07"),
     ("2027-01-15", "2027-02-08"),
 ]
 MAX_TOTAL_HOURS = 15              # skip any flight whose total journey time (incl. layovers) is longer; None = no limit
+TARGET_PRICE = 600               # alert when the fare is at/below this (in CURRENCY); None = off
+GROUND_COST = {"LHR": 0, "MAN": 0}  # your cost of getting to each airport, to compare true totals
+SHOW_INR = True                   # also show the fare in rupees (live exchange rate)
+ONLY_EMAIL_ON_CHANGE = False      # True = skip the email on days the price has not changed
 ETIHAD_URL = "https://www.etihad.com/en-gb"
 DATA_FILE = Path("docs/data.json")
 SENT_FILE = Path("docs/last_sent.txt")
+CONFIG_FILE = Path("docs/config.json")   # written by the dashboard
 # ---------------------------------------------------------------------------
 
 API = "https://serpapi.com/search.json"
@@ -74,6 +81,8 @@ def parse_itinerary(o):
             "to_name": arr.get("name", ""),
             "arr": fmt_dt(arr.get("time", "")),
             "duration": fmt_dur(l.get("duration")),
+            "dep_iso": dep.get("time", ""),
+            "arr_iso": arr.get("time", ""),
         })
     layovers = [{"airport": v.get("name", ""), "duration": fmt_dur(v.get("duration"))}
                 for v in o.get("layovers", [])]
@@ -221,6 +230,58 @@ def group_all(results):
     return out
 
 
+def load_history():
+    try:
+        return json.loads(DATA_FILE.read_text()).get("history", [])
+    except Exception:
+        return []
+
+
+def price_stats(today):
+    hist = [h for h in load_history() if h.get("date") != today]
+    prices = [h["price"] for h in hist]
+    return {
+        "prev": prices[-1] if prices else None,
+        "low": min(prices) if prices else None,
+        "avg": round(sum(prices) / len(prices)) if prices else None,
+        "days": len(prices),
+    }
+
+
+def get_rate():
+    if not SHOW_INR:
+        return None
+    try:
+        r = requests.get(f"https://open.er-api.com/v6/latest/{CURRENCY}", timeout=15).json()
+        return float(r["rates"]["INR"])
+    except Exception as e:
+        print(f"Exchange rate lookup failed: {e}", file=sys.stderr)
+        return None
+
+
+def by_origin(results):
+    out = []
+    for o in ORIGINS:
+        c = [r for r in results if r["origin"] == o]
+        if c:
+            b = min(c, key=lambda r: r["price"])
+            g = GROUND_COST.get(o, 0)
+            out.append({"origin": o, "price": b["price"], "ground": g, "total": b["price"] + g,
+                        "out": b["out"], "ret": b["ret"]})
+    return sorted(out, key=lambda x: x["total"])
+
+
+def send_telegram(text):
+    tok, chat = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
+    if not (tok and chat):
+        return
+    try:
+        requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
+                      json={"chat_id": chat, "text": text, "disable_web_page_preview": True}, timeout=20)
+    except Exception as e:
+        print(f"Telegram failed: {e}", file=sys.stderr)
+
+
 def send_email(subject, body):
     msg = EmailMessage()
     msg["Subject"] = subject
@@ -234,7 +295,7 @@ def send_email(subject, body):
         s.send_message(msg)
 
 
-def save_data(best, sites, all_results):
+def save_data(best, sites, all_results, extra=None):
     """Write docs/data.json for the dashboard (keeps 90 days of history)."""
     now = datetime.now(ZoneInfo("Europe/London"))
     history = []
@@ -255,8 +316,29 @@ def save_data(best, sites, all_results):
         "all": group_all(all_results),
         "history": history,
     }
+    data.update(extra or {})
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     DATA_FILE.write_text(json.dumps(data, indent=2))
+
+
+def active_pairs():
+    """Date pairs from docs/config.json if present, else DATE_PAIRS. Invalid pairs dropped, max MAX_PAIRS."""
+    pairs = list(DATE_PAIRS)
+    if CONFIG_FILE.exists():
+        try:
+            cfg = json.loads(CONFIG_FILE.read_text())
+            from_cfg = [(x["out"], x.get("ret") or None) for x in cfg.get("pairs", []) if x.get("out")]
+            if from_cfg:
+                pairs = from_cfg
+        except Exception as e:
+            print(f"Could not read config.json, using defaults: {e}", file=sys.stderr)
+    valid = []
+    for out_d, ret_d in pairs:
+        if ROUND_TRIP and ret_d and ret_d <= out_d:
+            print(f"Skipping invalid pair {out_d} / {ret_d}: return is not after outbound.", file=sys.stderr)
+            continue
+        valid.append((out_d, ret_d))
+    return valid[:MAX_PAIRS]
 
 
 def mark_sent(now):
@@ -276,9 +358,11 @@ def main():
             print("Already sent today, skipping.")
             return
 
+    pairs = active_pairs()
+    print(f"Searching {len(pairs)} date pair(s): {pairs}")
     all_results = []
     for origin in ORIGINS:
-        for out_date, ret_date in DATE_PAIRS:
+        for out_date, ret_date in pairs:
             if ROUND_TRIP and ret_date and ret_date <= out_date:
                 print(f"Skipping invalid pair {out_date} / {ret_date}: return is not after outbound.", file=sys.stderr)
                 continue
@@ -315,6 +399,28 @@ def main():
     lines += itinerary_text("OUTBOUND", best["outbound"])
     lines += itinerary_text("RETURN", best["inbound"])
 
+    today = london_now.strftime("%Y-%m-%d")
+    stats = price_stats(today)
+    rate = get_rate()
+    origins = by_origin(all_results)
+    hit = TARGET_PRICE is not None and best["price"] <= TARGET_PRICE
+    delta = None if stats["prev"] is None else best["price"] - stats["prev"]
+    tshort = "" if not delta else f" ({'down' if delta < 0 else 'up'} {abs(delta)})"
+    if hit:
+        lines.append(f"TARGET HIT: at or below your {CURRENCY} {TARGET_PRICE} target.")
+    if delta is not None:
+        lines.append("Since last check: " + ("no change" if delta == 0 else f"{'down' if delta < 0 else 'up'} {CURRENCY} {abs(delta)}"))
+    if stats["avg"]:
+        pct = round((best["price"] / stats["avg"] - 1) * 100)
+        verdict = "lowest seen so far" if best["price"] <= stats["low"] else f"{abs(pct)}% {'below' if pct < 0 else 'above'} average"
+        lines.append(f"Price check: {verdict} (lowest {stats['low']}, average {stats['avg']} over {stats['days']} days)")
+    if rate:
+        lines.append(f"In rupees: about INR {round(best['price'] * rate):,}")
+    if len(origins) > 1:
+        lines.append("By airport (fare + your ground cost): " + "; ".join(
+            f"{o['origin']} {o['price']}+{o['ground']}={o['total']}" for o in origins))
+    lines.append("")
+
     if sites:
         lines.append("Where to book (cheapest first):")
         lines += [f"  {name}: {CURRENCY} {price}" for name, price in sites[:5]]
@@ -341,9 +447,19 @@ def main():
         for f in g["flights"]:
             lines.append(f"  {CURRENCY} {f['price']}   {summary_line(f['outbound'])}")
 
-    send_email(f"Etihad to Cochin: {CURRENCY} {best['price']} from {best['origin']}", "\n".join(lines))
-    print("Email sent.")
-    save_data(best, sites, all_results)
+    flag = "TARGET HIT - " if hit else ""
+    changed = delta is None or delta != 0
+    if not ONLY_EMAIL_ON_CHANGE or changed or hit:
+        send_email(f"{flag}Etihad to Cochin: {CURRENCY} {best['price']}{tshort} from {best['origin']}", "\n".join(lines))
+        print("Email sent.")
+        send_telegram(f"{flag}Etihad to Cochin {CURRENCY} {best['price']}{tshort}\n"
+                      f"{best['origin']}  out {best['out']}  back {best['ret'] or 'one-way'}\n"
+                      f"{summary_line(best['outbound'])}\n{page or ETIHAD_URL}")
+    else:
+        print("Price unchanged, email skipped.")
+    save_data(best, sites, all_results, {
+        "stats": {**stats, "target": TARGET_PRICE, "hit": hit, "delta": delta},
+        "by_origin": origins, "rate": rate})
     mark_sent(london_now)
 
 
