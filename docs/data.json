@@ -1,9 +1,9 @@
 {
-  "updated": "2026-11-12 06:01 GMT",
+  "updated": "2026-11-13 06:01 GMT",
   "currency": "GBP",
   "etihad_url": "https://www.etihad.com/en-gb",
   "best": {
-    "price": 642,
+    "price": 640,
     "origin": "LHR",
     "out": "2027-01-14",
     "ret": "2027-02-07",
@@ -12,38 +12,38 @@
       "legs": [
         {
           "airline": "Etihad",
-          "flight": "EY 64",
+          "flight": "EY 66",
           "from": "LHR",
           "from_name": "Heathrow Airport",
-          "dep": "Thu 14 Jan 2027, 13:55",
+          "dep": "Thu 14 Jan 2027, 19:20",
           "to": "AUH",
           "to_name": "Zayed International Airport",
-          "arr": "Fri 15 Jan 2027, 00:50",
-          "duration": "6h 55m",
-          "dep_iso": "2027-01-14 13:55",
-          "arr_iso": "2027-01-15 00:50"
+          "arr": "Fri 15 Jan 2027, 06:10",
+          "duration": "6h 50m",
+          "dep_iso": "2027-01-14 19:20",
+          "arr_iso": "2027-01-15 06:10"
         },
         {
           "airline": "Etihad",
-          "flight": "EY 330",
+          "flight": "EY 332",
           "from": "AUH",
           "from_name": "Zayed International Airport",
-          "dep": "Fri 15 Jan 2027, 02:30",
+          "dep": "Fri 15 Jan 2027, 08:40",
           "to": "COK",
           "to_name": "Cochin International Airport",
-          "arr": "Fri 15 Jan 2027, 07:55",
+          "arr": "Fri 15 Jan 2027, 14:05",
           "duration": "3h 55m",
-          "dep_iso": "2027-01-15 02:30",
-          "arr_iso": "2027-01-15 07:55"
+          "dep_iso": "2027-01-15 08:40",
+          "arr_iso": "2027-01-15 14:05"
         }
       ],
       "layovers": [
         {
           "airport": "Zayed International Airport",
-          "duration": "1h 40m"
+          "duration": "2h 30m"
         }
       ],
-      "total_duration": "12h 30m"
+      "total_duration": "13h 15m"
     },
     "inbound": {
       "legs": [
@@ -86,49 +86,49 @@
   "sites": [],
   "top": [
     {
-      "price": 642,
+      "price": 640,
       "origin": "LHR",
       "out": "2027-01-14",
       "ret": "2027-02-07"
     },
     {
-      "price": 616,
-      "origin": "LHR",
-      "out": "2027-01-14",
-      "ret": "2027-02-08"
-    },
-    {
-      "price": 616,
-      "origin": "LHR",
-      "out": "2027-01-14",
-      "ret": "2027-02-08"
-    },
-    {
-      "price": 642,
+      "price": 615,
       "origin": "LHR",
       "out": "2027-01-14",
       "ret": "2027-02-07"
     },
     {
-      "price": 682,
-      "origin": "LHR",
-      "out": "2027-01-14",
-      "ret": "2027-02-07"
-    },
-    {
-      "price": 689,
+      "price": 628,
       "origin": "LHR",
       "out": "2027-01-14",
       "ret": "2027-02-08"
     },
     {
-      "price": 755,
+      "price": 646,
+      "origin": "LHR",
+      "out": "2027-01-14",
+      "ret": "2027-02-08"
+    },
+    {
+      "price": 664,
+      "origin": "LHR",
+      "out": "2027-01-14",
+      "ret": "2027-02-08"
+    },
+    {
+      "price": 684,
+      "origin": "LHR",
+      "out": "2027-01-14",
+      "ret": "2027-02-07"
+    },
+    {
+      "price": 802,
       "origin": "MAN",
       "out": "2027-01-14",
       "ret": "2027-02-08"
     },
     {
-      "price": 872,
+      "price": 874,
       "origin": "MAN",
       "out": "2027-01-14",
       "ret": "2027-02-07"
@@ -141,7 +141,7 @@
       "ret": "2027-02-07",
       "flights": [
         {
-          "price": 642,
+          "price": 615,
           "outbound": {
             "legs": [
               {
@@ -181,7 +181,7 @@
           }
         },
         {
-          "price": 642,
+          "price": 640,
           "outbound": {
             "legs": [
               {
@@ -221,7 +221,7 @@
           }
         },
         {
-          "price": 682,
+          "price": 684,
           "outbound": {
             "legs": [
               {
@@ -268,7 +268,7 @@
       "ret": "2027-02-08",
       "flights": [
         {
-          "price": 616,
+          "price": 628,
           "outbound": {
             "legs": [
               {
@@ -308,7 +308,7 @@
           }
         },
         {
-          "price": 616,
+          "price": 646,
           "outbound": {
             "legs": [
               {
@@ -348,7 +348,7 @@
           }
         },
         {
-          "price": 689,
+          "price": 664,
           "outbound": {
             "legs": [
               {
@@ -395,7 +395,7 @@
       "ret": "2027-02-08",
       "flights": [
         {
-          "price": 755,
+          "price": 802,
           "outbound": {
             "legs": [
               {
@@ -442,7 +442,7 @@
       "ret": "2027-02-07",
       "flights": [
         {
-          "price": 872,
+          "price": 874,
           "outbound": {
             "legs": [
               {
@@ -509,34 +509,39 @@
       "date": "2026-11-12",
       "price": 642,
       "origin": "LHR"
+    },
+    {
+      "date": "2026-11-13",
+      "price": 640,
+      "origin": "LHR"
     }
   ],
   "stats": {
-    "prev": 618,
+    "prev": 642,
     "low": 609,
-    "avg": 619,
-    "days": 4,
+    "avg": 624,
+    "days": 5,
     "target": 600,
     "hit": false,
-    "delta": 24
+    "delta": -2
   },
   "by_origin": [
     {
       "origin": "LHR",
-      "price": 616,
+      "price": 615,
       "ground": 0,
-      "total": 616,
+      "total": 615,
       "out": "2027-01-14",
-      "ret": "2027-02-08"
+      "ret": "2027-02-07"
     },
     {
       "origin": "MAN",
-      "price": 755,
+      "price": 802,
       "ground": 0,
-      "total": 755,
+      "total": 802,
       "out": "2027-01-14",
       "ret": "2027-02-08"
     }
   ],
-  "rate": 124.609965
+  "rate": 124.552945
 }
