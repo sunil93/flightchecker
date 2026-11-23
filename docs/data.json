@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-22 06:01 GMT",
+  "updated": "2026-11-23 06:01 GMT",
   "currency": "GBP",
   "etihad_url": "https://www.etihad.com/en-gb",
   "best": {
@@ -467,16 +467,21 @@
       "date": "2026-11-22",
       "price": 816,
       "origin": "LHR"
+    },
+    {
+      "date": "2026-11-23",
+      "price": 816,
+      "origin": "LHR"
     }
   ],
   "stats": {
-    "prev": 751,
+    "prev": 816,
     "low": 609,
-    "avg": 677,
-    "days": 14,
+    "avg": 686,
+    "days": 15,
     "target": 600,
     "hit": false,
-    "delta": 65
+    "delta": 0
   },
   "by_origin": [
     {
@@ -496,5 +501,5 @@
       "ret": "2027-02-08"
     }
   ],
-  "rate": 121.673696
+  "rate": 121.328253
 }
