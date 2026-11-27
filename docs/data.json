@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-26 06:01 GMT",
+  "updated": "2026-11-27 06:01 GMT",
   "currency": "GBP",
   "etihad_url": "https://www.etihad.com/en-gb",
   "best": {
@@ -92,31 +92,19 @@
       "ret": "2027-02-08"
     },
     {
-      "price": 728,
+      "price": 720,
       "origin": "LHR",
       "out": "2027-01-14",
       "ret": "2027-02-07"
     },
     {
-      "price": 773,
-      "origin": "LHR",
-      "out": "2027-01-14",
-      "ret": "2027-02-08"
-    },
-    {
-      "price": 793,
-      "origin": "LHR",
-      "out": "2027-01-14",
-      "ret": "2027-02-07"
-    },
-    {
-      "price": 807,
+      "price": 802,
       "origin": "MAN",
       "out": "2027-01-14",
       "ret": "2027-02-08"
     },
     {
-      "price": 879,
+      "price": 876,
       "origin": "MAN",
       "out": "2027-01-14",
       "ret": "2027-02-07"
@@ -128,46 +116,6 @@
       "out": "2027-01-14",
       "ret": "2027-02-08",
       "flights": [
-        {
-          "price": 773,
-          "outbound": {
-            "legs": [
-              {
-                "airline": "Etihad",
-                "flight": "EY 68",
-                "from": "LHR",
-                "from_name": "Heathrow Airport",
-                "dep": "Thu 14 Jan 2027, 20:55",
-                "to": "AUH",
-                "to_name": "Zayed International Airport",
-                "arr": "Fri 15 Jan 2027, 07:45",
-                "duration": "6h 50m",
-                "dep_iso": "2027-01-14 20:55",
-                "arr_iso": "2027-01-15 07:45"
-              },
-              {
-                "airline": "Etihad",
-                "flight": "EY 332",
-                "from": "AUH",
-                "from_name": "Zayed International Airport",
-                "dep": "Fri 15 Jan 2027, 08:40",
-                "to": "COK",
-                "to_name": "Cochin International Airport",
-                "arr": "Fri 15 Jan 2027, 14:05",
-                "duration": "3h 55m",
-                "dep_iso": "2027-01-15 08:40",
-                "arr_iso": "2027-01-15 14:05"
-              }
-            ],
-            "layovers": [
-              {
-                "airport": "Zayed International Airport",
-                "duration": "0h 55m"
-              }
-            ],
-            "total_duration": "11h 40m"
-          }
-        },
         {
           "price": 805,
           "outbound": {
@@ -216,7 +164,7 @@
       "ret": "2027-02-07",
       "flights": [
         {
-          "price": 728,
+          "price": 720,
           "outbound": {
             "legs": [
               {
@@ -254,46 +202,6 @@
             ],
             "total_duration": "12h 30m"
           }
-        },
-        {
-          "price": 793,
-          "outbound": {
-            "legs": [
-              {
-                "airline": "Etihad",
-                "flight": "EY 68",
-                "from": "LHR",
-                "from_name": "Heathrow Airport",
-                "dep": "Thu 14 Jan 2027, 20:55",
-                "to": "AUH",
-                "to_name": "Zayed International Airport",
-                "arr": "Fri 15 Jan 2027, 07:45",
-                "duration": "6h 50m",
-                "dep_iso": "2027-01-14 20:55",
-                "arr_iso": "2027-01-15 07:45"
-              },
-              {
-                "airline": "Etihad",
-                "flight": "EY 332",
-                "from": "AUH",
-                "from_name": "Zayed International Airport",
-                "dep": "Fri 15 Jan 2027, 08:40",
-                "to": "COK",
-                "to_name": "Cochin International Airport",
-                "arr": "Fri 15 Jan 2027, 14:05",
-                "duration": "3h 55m",
-                "dep_iso": "2027-01-15 08:40",
-                "arr_iso": "2027-01-15 14:05"
-              }
-            ],
-            "layovers": [
-              {
-                "airport": "Zayed International Airport",
-                "duration": "0h 55m"
-              }
-            ],
-            "total_duration": "11h 40m"
-          }
         }
       ]
     },
@@ -303,7 +211,7 @@
       "ret": "2027-02-08",
       "flights": [
         {
-          "price": 807,
+          "price": 802,
           "outbound": {
             "legs": [
               {
@@ -350,7 +258,7 @@
       "ret": "2027-02-07",
       "flights": [
         {
-          "price": 879,
+          "price": 876,
           "outbound": {
             "legs": [
               {
@@ -487,34 +395,39 @@
       "date": "2026-11-26",
       "price": 805,
       "origin": "LHR"
+    },
+    {
+      "date": "2026-11-27",
+      "price": 805,
+      "origin": "LHR"
     }
   ],
   "stats": {
-    "prev": 758,
+    "prev": 805,
     "low": 609,
-    "avg": 705,
-    "days": 18,
+    "avg": 710,
+    "days": 19,
     "target": 600,
     "hit": false,
-    "delta": 47
+    "delta": 0
   },
   "by_origin": [
     {
       "origin": "LHR",
-      "price": 728,
+      "price": 720,
       "ground": 0,
-      "total": 728,
+      "total": 720,
       "out": "2027-01-14",
       "ret": "2027-02-07"
     },
     {
       "origin": "MAN",
-      "price": 807,
+      "price": 802,
       "ground": 0,
-      "total": 807,
+      "total": 802,
       "out": "2027-01-14",
       "ret": "2027-02-08"
     }
   ],
-  "rate": 121.690953
+  "rate": 121.143038
 }
